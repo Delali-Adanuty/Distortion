@@ -40,8 +40,23 @@ juce::AudioParameterFloat& createTrimParameter(juce::AudioProcessor& processor)
     return addParameterToProcessor(processor, std::move(parameter));
 }
 
+juce::AudioParameterFloat& createDryWetMixParameter(juce::AudioProcessor& processor)
+{
+    constexpr auto versionHint = 1;
+
+    auto parameter = std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"dryWetMix", versionHint},
+        "DryWetMix",
+        juce::NormalisableRange<float>{0.0f, 1.0f, 0.1f, 1.0f},
+        0.0f
+    );
+
+    return addParameterToProcessor(processor, std::move(parameter));
+}
+
 Parameters::Parameters(juce::AudioProcessor& processor)
     : drive{createDriveParameter(processor)},
-    trim{createTrimParameter(processor)}
+    trim{createTrimParameter(processor)},
+    dryWetMix{createDryWetMixParameter(processor)}
 {
 }

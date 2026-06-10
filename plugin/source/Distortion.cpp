@@ -19,15 +19,16 @@ Distortion::Distortion()
     processorChain.get<trimIndex>().setRampDurationSeconds(0.025);
 }
 
-void Distortion::prepare(double sampleRate, int expectedMaxFramesPerBlock)
+void Distortion::prepare(double sampleRate, int expectedMaxFramesPerBlock, int numChannels)
 {
     const juce::dsp::ProcessSpec processSpec {
         .sampleRate = sampleRate,
         .maximumBlockSize = static_cast<juce::uint32>(expectedMaxFramesPerBlock),
-        .numChannels = 1u,
+        .numChannels = static_cast<juce::uint32>(numChannels),
       };
 
     processorChain.prepare(processSpec);
+    dryWetMixer.prepare(processSpec);
 }
 
 
@@ -47,7 +48,13 @@ void Distortion::process(juce::AudioBuffer<float>& buffer) noexcept
 
     juce::dsp::ProcessContextReplacing<float> context(block);
 
+    dryWetMixer.setWetMixProportion(dryWetMix);
+
+    dryWetMixer.pushDrySamples(block);
+
     processorChain.process(context);
+
+    dryWetMixer.mixWetSamples(block);
 
 }
 
@@ -64,4 +71,9 @@ void Distortion::setDrive(float driveFloat)
 void Distortion::setTrim(float trimFloat)
 {
     trim = trimFloat;
+}
+
+void Distortion::setDryWetMix(float dryWetMixFloat)
+{
+    dryWetMix = dryWetMixFloat;
 }

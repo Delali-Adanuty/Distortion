@@ -97,7 +97,7 @@ void AudioPluginAudioProcessor::prepareToPlay(double sampleRate, int samplesPerB
     // Use this method as the place to do any pre-playback
     // initialisation that you need..
     juce::ignoreUnused(sampleRate, samplesPerBlock);
-    distortion.prepare(sampleRate, samplesPerBlock);
+    distortion.prepare(sampleRate, samplesPerBlock, getTotalNumOutputChannels());
 }
 
 void AudioPluginAudioProcessor::releaseResources()
@@ -166,6 +166,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     // Update parameters
     distortion.setDrive(parameters.drive.get());
     distortion.setTrim(parameters.trim.get());
+    distortion.setDryWetMix(parameters.dryWetMix.get());
 
 
     // Apply distortion

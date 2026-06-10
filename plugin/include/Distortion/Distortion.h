@@ -15,7 +15,7 @@ class Distortion {
 public:
     Distortion();
 
-    void prepare(double sampleRate, int expectedMaxFramesPerBlock);
+    void prepare(double sampleRate, int expectedMaxFramesPerBlock, int numChannels);
 
     void process(juce::AudioBuffer<float>& buffer) noexcept;
 
@@ -24,6 +24,8 @@ public:
     void setDrive(float driveFloat);
 
     void setTrim(float trimFloat);
+
+    void setDryWetMix(float dryWetMixFloat);
 
 private:
     enum
@@ -35,12 +37,16 @@ private:
 
     float drive;
     float trim;
+    float dryWetMix;
 
     juce::dsp::ProcessorChain<
         juce::dsp::Gain<float>,
         juce::dsp::WaveShaper<float>,
         juce::dsp::Gain<float>
     > processorChain;
+
+
+    juce::dsp::DryWetMixer<float> dryWetMixer;
 };
 
 
