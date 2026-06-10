@@ -1,0 +1,14 @@
+# CMake & Compiler Build Directories
+build/
+cmake-build-debug/
+cmake-build-release/
+
+# Pre-compiled Libraries
+libs/
+
+# CLion IDE Workspace Files
+.idea/
+
+# OS Generated Files
+.DS_Store
+Thumbs.db
