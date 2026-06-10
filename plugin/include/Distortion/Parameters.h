@@ -14,5 +14,6 @@ struct Parameters{
     explicit Parameters(juce::AudioProcessor&);
 
     juce::AudioParameterFloat& drive;
+    juce::AudioParameterFloat& trim;
 };
 #endif //PARAMETERS_H

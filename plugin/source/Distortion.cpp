@@ -7,6 +7,18 @@
 #include <ranges>
 
 
+Distortion::Distortion()
+{
+    auto& waveshaper = processorChain.template get<waveshaperIndex>();
+    waveshaper.functionToUse = [] (float x)
+    {
+        return std::tanh(x);
+    };
+
+    processorChain.get<driveIndex>().setRampDurationSeconds(0.025);
+    processorChain.get<trimIndex>().setRampDurationSeconds(0.025);
+}
+
 void Distortion::prepare(double sampleRate, int expectedMaxFramesPerBlock)
 {
     const juce::dsp::ProcessSpec processSpec {
@@ -14,36 +26,42 @@ void Distortion::prepare(double sampleRate, int expectedMaxFramesPerBlock)
         .maximumBlockSize = static_cast<juce::uint32>(expectedMaxFramesPerBlock),
         .numChannels = 1u,
       };
+
+    processorChain.prepare(processSpec);
 }
 
 
 void Distortion::process(juce::AudioBuffer<float>& buffer) noexcept
 {
-    // For each frame
-    for (const auto frameIndex : std::views::iota(0, buffer.getNumSamples()))
-    {
-        // for each channel sample in the frame
-        for (const auto channelIndex :
-             std::views::iota(0, buffer.getNumChannels()))
-        {
-            // Getting the current input sample
-            const auto inputSample = buffer.getSample(channelIndex, frameIndex);
+
+    //Processor Chain Implementation
 
 
-            // Processing
-            const auto outputSample = inputSample * drive;
+    float driveGain = juce::Decibels::decibelsToGain(drive);
+    float trimGain = juce::Decibels::decibelsToGain(trim);
 
-            // Setting the sample as the processed sample
-            buffer.setSample(channelIndex, frameIndex, outputSample);
-        }
-    }
+    processorChain.get<driveIndex>().setGainLinear(driveGain);
+    processorChain.get<trimIndex>().setGainLinear(trimGain);
+
+    juce::dsp::AudioBlock<float> block(buffer);
+
+    juce::dsp::ProcessContextReplacing<float> context(block);
+
+    processorChain.process(context);
+
 }
 
 void Distortion::reset() noexcept
 {
+    processorChain.reset();
 }
 
 void Distortion::setDrive(float driveFloat)
 {
     drive = driveFloat;
+}
+
+void Distortion::setTrim(float trimFloat)
+{
+    trim = trimFloat;
 }

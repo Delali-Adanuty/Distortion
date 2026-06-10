@@ -165,6 +165,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
 
     // Update parameters
     distortion.setDrive(parameters.drive.get());
+    distortion.setTrim(parameters.trim.get());
 
 
     // Apply distortion
