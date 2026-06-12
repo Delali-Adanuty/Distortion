@@ -4,19 +4,18 @@
  */
  
 #include "Distortion/Distortion.h"
-#include <ranges>
 
 
 Distortion::Distortion()
 {
-    auto& waveshaper = processorChain.template get<waveshaperIndex>();
+    auto& waveshaper = overSampledChain.template get<waveshaperIndex>();
     waveshaper.functionToUse = [] (float x)
     {
         return std::tanh(x);
     };
 
-    processorChain.get<driveIndex>().setRampDurationSeconds(0.025);
-    processorChain.get<trimIndex>().setRampDurationSeconds(0.025);
+    preProcessingChain.get<driveIndex>().setRampDurationSeconds(0.025);
+    postProcessingChain.get<trimIndex>().setRampDurationSeconds(0.025);
 }
 
 void Distortion::prepare(double sampleRate, int expectedMaxFramesPerBlock, int numChannels)
@@ -29,10 +28,26 @@ void Distortion::prepare(double sampleRate, int expectedMaxFramesPerBlock, int n
 
     currentSampleRate = sampleRate;
 
-    processorChain.prepare(processSpec);
+    oversampler = std::make_unique<juce::dsp::Oversampling<float>>(
+        numChannels,
+        3,
+        juce::dsp::Oversampling<float>::filterHalfBandFIREquiripple,
+        true);
+
+    oversampler->initProcessing(processSpec.maximumBlockSize);
+
+    juce::dsp::ProcessSpec oversampledSpec = processSpec;
+    oversampledSpec.sampleRate = sampleRate * oversampler->getOversamplingFactor();
+
+    preProcessingChain.prepare(processSpec);
+    overSampledChain.prepare(oversampledSpec);
+    postProcessingChain.prepare(processSpec);
     dryWetMixer.prepare(processSpec);
 
+    reset();
+
     setTone(tone);
+
 }
 
 
@@ -45,18 +60,31 @@ void Distortion::process(juce::AudioBuffer<float>& buffer) noexcept
     float driveGain = juce::Decibels::decibelsToGain(drive);
     float trimGain = juce::Decibels::decibelsToGain(trim);
 
-    processorChain.get<driveIndex>().setGainLinear(driveGain);
-    processorChain.get<trimIndex>().setGainLinear(trimGain);
+    preProcessingChain.get<driveIndex>().setGainLinear(driveGain);
+    postProcessingChain.get<trimIndex>().setGainLinear(trimGain);
 
     juce::dsp::AudioBlock<float> block(buffer);
-
     juce::dsp::ProcessContextReplacing<float> context(block);
 
     dryWetMixer.setWetMixProportion(dryWetMix);
-
     dryWetMixer.pushDrySamples(block);
 
-    processorChain.process(context);
+    preProcessingChain.process(context);
+
+    if (oversampler != nullptr)
+    {
+        juce::dsp::AudioBlock<float> overSampledBlock = oversampler->processSamplesUp(block);
+        juce::dsp::ProcessContextReplacing<float> overSampledContext(overSampledBlock);
+        overSampledChain.process(overSampledContext);
+
+        oversampler->processSamplesDown(block);
+    }
+    else
+    {
+        overSampledChain.process(context);
+    }
+
+    postProcessingChain.process(context);
 
     dryWetMixer.mixWetSamples(block);
 
@@ -64,7 +92,10 @@ void Distortion::process(juce::AudioBuffer<float>& buffer) noexcept
 
 void Distortion::reset() noexcept
 {
-    processorChain.reset();
+    preProcessingChain.reset();
+    overSampledChain.reset();
+    postProcessingChain.reset();
+    dryWetMixer.reset();
 }
 
 void Distortion::setDrive(float driveFloat)
@@ -88,12 +119,13 @@ void Distortion::setTone(float toneFloat)
     preHighPassFreq = juce::jmap(tone, 600.0f, 40.0f);
     postLowPassFreq = juce::jmap(tone, 1000.0f, 15000.0f);
 
-    auto& prefilter = processorChain.template get<preFilterIndex>();
+    auto& prefilter = preProcessingChain.template get<preFilterIndex>();
     *prefilter.state = *FilterCoefs::makeFirstOrderHighPass(currentSampleRate, preHighPassFreq);
 
-    auto& postfilter = processorChain.template get<postFilterIndex>();
+    auto& postfilter = postProcessingChain.template get<postFilterIndex>();
     *postfilter.state = *FilterCoefs::makeFirstOrderLowPass(currentSampleRate, postLowPassFreq);
 
-    auto& dcBlocker = processorChain.template get<dcBlockerIndex>();
-    *dcBlocker.state = *FilterCoefs::makeFirstOrderHighPass(currentSampleRate, 5.0f);
+    float overSampledRate = currentSampleRate * oversampler->getOversamplingFactor();
+    auto& dcBlocker = overSampledChain.template get<dcBlockerIndex>();
+    *dcBlocker.state = *FilterCoefs::makeFirstOrderHighPass(overSampledRate, 5.0f);
 }

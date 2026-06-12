@@ -30,15 +30,7 @@ public:
     void setTone(float toneFloat);
 
 private:
-    enum
-    {
-        driveIndex,
-        preFilterIndex,
-        waveshaperIndex,
-        dcBlockerIndex,
-        postFilterIndex,
-        trimIndex
-    };
+
 
     float drive = 20.0f;
     float trim = -20.0f;
@@ -51,17 +43,41 @@ private:
     using Filter = juce::dsp::IIR::Filter<float>;
     using FilterCoefs = juce::dsp::IIR::Coefficients<float>;
 
+    enum
+    {
+        driveIndex,
+        preFilterIndex
+    };
     juce::dsp::ProcessorChain<
         juce::dsp::Gain<float>,
-        juce::dsp::ProcessorDuplicator<Filter, FilterCoefs>,
+        juce::dsp::ProcessorDuplicator<Filter, FilterCoefs>
+    > preProcessingChain;
+
+    enum
+    {
+        waveshaperIndex,
+        dcBlockerIndex
+    };
+    juce::dsp::ProcessorChain<
         juce::dsp::WaveShaper<float>,
-        juce::dsp::ProcessorDuplicator<Filter, FilterCoefs>,
+        juce::dsp::ProcessorDuplicator<Filter, FilterCoefs>
+    > overSampledChain;
+
+    enum{
+        postFilterIndex,
+        trimIndex
+    };
+
+    juce::dsp::ProcessorChain<
         juce::dsp::ProcessorDuplicator<Filter, FilterCoefs>,
         juce::dsp::Gain<float>
-    > processorChain;
+    > postProcessingChain;
 
 
     juce::dsp::DryWetMixer<float> dryWetMixer;
+
+    std::unique_ptr<juce::dsp::Oversampling<float>> oversampler;
+
 };
 
 
