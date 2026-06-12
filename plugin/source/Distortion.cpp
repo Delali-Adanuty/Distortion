@@ -27,8 +27,12 @@ void Distortion::prepare(double sampleRate, int expectedMaxFramesPerBlock, int n
         .numChannels = static_cast<juce::uint32>(numChannels),
       };
 
+    currentSampleRate = sampleRate;
+
     processorChain.prepare(processSpec);
     dryWetMixer.prepare(processSpec);
+
+    setTone(tone);
 }
 
 
@@ -76,4 +80,20 @@ void Distortion::setTrim(float trimFloat)
 void Distortion::setDryWetMix(float dryWetMixFloat)
 {
     dryWetMix = dryWetMixFloat;
+}
+
+void Distortion::setTone(float toneFloat)
+{
+    tone = toneFloat;
+    preHighPassFreq = juce::jmap(tone, 600.0f, 40.0f);
+    postLowPassFreq = juce::jmap(tone, 1000.0f, 15000.0f);
+
+    auto& prefilter = processorChain.template get<preFilterIndex>();
+    *prefilter.state = *FilterCoefs::makeFirstOrderHighPass(currentSampleRate, preHighPassFreq);
+
+    auto& postfilter = processorChain.template get<postFilterIndex>();
+    *postfilter.state = *FilterCoefs::makeFirstOrderLowPass(currentSampleRate, postLowPassFreq);
+
+    auto& dcBlocker = processorChain.template get<dcBlockerIndex>();
+    *dcBlocker.state = *FilterCoefs::makeFirstOrderHighPass(currentSampleRate, 5.0f);
 }

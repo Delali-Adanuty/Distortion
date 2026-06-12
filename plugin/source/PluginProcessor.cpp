@@ -167,8 +167,10 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     distortion.setDrive(parameters.drive.get());
     distortion.setTrim(parameters.trim.get());
     distortion.setDryWetMix(parameters.dryWetMix.get());
+    distortion.setTone(parameters.tone.get());
 
 
+    DBG(parameters.tone.get());
     // Apply distortion
     distortion.process(buffer);
 }

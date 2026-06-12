@@ -27,21 +27,36 @@ public:
 
     void setDryWetMix(float dryWetMixFloat);
 
+    void setTone(float toneFloat);
+
 private:
     enum
     {
         driveIndex,
+        preFilterIndex,
         waveshaperIndex,
+        dcBlockerIndex,
+        postFilterIndex,
         trimIndex
     };
 
-    float drive;
-    float trim;
-    float dryWetMix;
+    float drive = 20.0f;
+    float trim = -20.0f;
+    float tone = 0.0f;
+    float dryWetMix = 0.0f;
+    float preHighPassFreq = 600.0f;
+    float postLowPassFreq = 1000.0f;
+    float currentSampleRate;
+
+    using Filter = juce::dsp::IIR::Filter<float>;
+    using FilterCoefs = juce::dsp::IIR::Coefficients<float>;
 
     juce::dsp::ProcessorChain<
         juce::dsp::Gain<float>,
+        juce::dsp::ProcessorDuplicator<Filter, FilterCoefs>,
         juce::dsp::WaveShaper<float>,
+        juce::dsp::ProcessorDuplicator<Filter, FilterCoefs>,
+        juce::dsp::ProcessorDuplicator<Filter, FilterCoefs>,
         juce::dsp::Gain<float>
     > processorChain;
 

@@ -15,6 +15,7 @@ struct Parameters{
 
     juce::AudioParameterFloat& drive;
     juce::AudioParameterFloat& trim;
+    juce::AudioParameterFloat& tone;
     juce::AudioParameterFloat& dryWetMix;
 };
 #endif //PARAMETERS_H
