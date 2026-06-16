@@ -36,6 +36,7 @@ target_sources(${PROJECT_NAME}
         source/PluginProcessor.cpp
         source/Parameters.cpp
         source/Distortion.cpp
+        source/JsonSerializer.cpp
 )
 
 target_include_directories(${PROJECT_NAME}
