@@ -46,8 +46,27 @@ void Distortion::prepare(double sampleRate, int expectedMaxFramesPerBlock, int n
 
     reset();
 
-    setTone(tone);
 
+
+    driveTransitionSmoother.reset(sampleRate, 0.020);
+    trimTransitionSmoother.reset(sampleRate, 0.020);
+    toneTransitionSmoother.reset(sampleRate, 0.020);
+    dryWetMixTransitionSmoother.reset(sampleRate, 0.020);
+
+    driveTransitionSmoother.setCurrentAndTargetValue(drive);
+    trimTransitionSmoother.setCurrentAndTargetValue(trim);
+    toneTransitionSmoother.setCurrentAndTargetValue(tone);
+    dryWetMixTransitionSmoother.setCurrentAndTargetValue(dryWetMix);
+
+    if (toneTransitionSmoother.isSmoothing())
+    {
+        float currentTone = toneTransitionSmoother.getNextValue();
+        setTone(currentTone);
+    }
+    else
+    {
+        setTone(tone);
+    }
 }
 
 
@@ -55,10 +74,32 @@ void Distortion::process(juce::AudioBuffer<float>& buffer) noexcept
 {
 
     //Processor Chain Implementation
+    float driveGain;
+    float trimGain;
 
+    driveTransitionSmoother.setTargetValue(drive);
+    trimTransitionSmoother.setTargetValue(trim);
 
-    float driveGain = juce::Decibels::decibelsToGain(drive);
-    float trimGain = juce::Decibels::decibelsToGain(trim);
+    if (driveTransitionSmoother.isSmoothing())
+    {
+        float currentDrive = driveTransitionSmoother.getCurrentValue();
+        driveGain = juce::Decibels::decibelsToGain(currentDrive);
+    }
+    else
+    {
+        driveGain = juce::Decibels::decibelsToGain(drive);
+    }
+
+    if (trimTransitionSmoother.isSmoothing())
+    {
+        float currentTrim = trimTransitionSmoother.getCurrentValue();
+        trimGain = juce::Decibels::decibelsToGain(trim);
+    }
+    else
+    {
+        trimGain = juce::Decibels::decibelsToGain(trim);
+    }
+
 
     preProcessingChain.get<driveIndex>().setGainLinear(driveGain);
     postProcessingChain.get<trimIndex>().setGainLinear(trimGain);
@@ -66,7 +107,16 @@ void Distortion::process(juce::AudioBuffer<float>& buffer) noexcept
     juce::dsp::AudioBlock<float> block(buffer);
     juce::dsp::ProcessContextReplacing<float> context(block);
 
-    dryWetMixer.setWetMixProportion(dryWetMix);
+    if (dryWetMixTransitionSmoother.isSmoothing())
+    {
+        float currentDryWetMix = dryWetMixTransitionSmoother.getCurrentValue();
+        dryWetMixer.setWetMixProportion(currentDryWetMix);
+    }
+    else
+    {
+        dryWetMixer.setWetMixProportion(dryWetMix);
+    }
+
     dryWetMixer.pushDrySamples(block);
 
     preProcessingChain.process(context);

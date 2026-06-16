@@ -78,6 +78,11 @@ private:
 
     std::unique_ptr<juce::dsp::Oversampling<float>> oversampler;
 
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Multiplicative> driveTransitionSmoother{0.0f};
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Multiplicative> trimTransitionSmoother{0.0f};
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> toneTransitionSmoother{0.0f};
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> dryWetMixTransitionSmoother{0.0f};
+
 };
 
 
