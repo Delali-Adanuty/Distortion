@@ -1,4 +1,4 @@
-# Building a Distortion Plugin: How I Learned to Stop Worrying and Love Aliasing
+# Building a Distortion Plugin: Not all Aliasing is bad
 
 For a long time, distortion was just a word guitarists threw around. 
 Then I took Signal Processing and the word got a lot scarier. In an academic DSP context, 
