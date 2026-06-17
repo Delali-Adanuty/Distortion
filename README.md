@@ -8,6 +8,8 @@
 
 A professional-grade, real-time C++ audio distortion processor built utilizing the JUCE framework. This plugin leverages a multi-rate DSP architecture to apply non-linear waveshaping at high resolutions, effectively eliminating harmonic aliasing while maintaining a strictly lock-free audio thread and highly optimized CPU footprint.
 
+Read more about the behind the scenes and inspiration **[here](https://delali-adanuty.github.io/Distortion/)**
+
 ---
 
 ## Core Features
