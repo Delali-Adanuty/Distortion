@@ -171,7 +171,7 @@ void AudioPluginAudioProcessor::processBlock(juce::AudioBuffer<float> &buffer,
     distortion.setTone(parameters.tone.get());
 
 
-    DBG(parameters.tone.get());
+
     // Apply distortion
     distortion.process(buffer);
 }
