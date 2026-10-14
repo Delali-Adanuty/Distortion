@@ -4,53 +4,68 @@
 ![JUCE](https://img.shields.io/badge/JUCE-Framework-brightgreen.svg?style=for-the-badge)
 ![CMake](https://img.shields.io/badge/CMake-%23008FBA.svg?style=for-the-badge&logo=cmake&logoColor=white)
 
-**Author:** Van-Dyck Adanuty 
+This is a tanh distortion plugin that decreases aliasing with 8× oversampling. I made it in C++ with the JUCE framework.
 
-Digital non-linear waveshaping inherently generates harmonics that exceed the Nyquist frequency, which reflect back into the audible spectrum as inharmonic aliasing. A standard single-rate waveshaper cannot compensate for this. This project implements a multi-rate DSP architecture that isolates non-linear algorithms to a high-resolution oversampled environment, generating harmonic distortion while attenuating digital artifacts.
+## Purpose
 
-Read more about the architecture and filter design **[here](https://delali-adanuty.github.io/Distortion/)**
+A nonlinear function adds harmonics to a signal. Harmonics above the Nyquist frequency fold back into the audio band as inharmonic tones (aliasing). This plugin increases the sample rate by 8 before the waveshaper. Then it removes the high harmonics and decreases the rate again. In my tests, this decreases the aliased power by 80 dB.
 
----
+## Formats
 
-## Core Features
+- **VST3 plugin:** Operates in a Digital Audio Workstation (DAW).
+- **Standalone application:** Uses the audio drivers of the computer.
 
-* **Multi-Rate DSP Architecture:** A 3-stage processor chain that isolates linear equalizers to the native host rate while running non-linear algorithms at an 8x oversampled resolution.
-* **Anti-Aliasing Engine:** 8x oversampling block utilizing 141st-order linear-phase FIR equiripple filters for a time-aligned impulse response during interpolation and decimation.
-* **State Management:** Complete DAW session recall via JSON state serialization and ~20ms linear parameter smoothing to prevent numerical instability and audio discontinuities during live adjustments.
+## Function
 
----
+- **Three-stage signal path:** The linear filters operate at the host rate. Only the waveshaper and the DC blocker operate at 8× the host rate.
+- **Oversampling:** The JUCE `dsp::Oversampling` class with three 2× stages of half-band, linear-phase FIR filters.
+- **Waveshaper:** A symmetric `tanh(x)` function. It adds odd harmonics.
+- **Tone control:** One control moves the cutoffs of a high-pass filter before the waveshaper and a low-pass filter after it.
+- **Dry/wet mix:** Combines the input signal with the distorted signal.
+- **State recall:** The plugin saves all parameters as JSON with a DAW session.
 
-## System Architecture
+## Controls
 
-To mitigate digital aliasing, the signal flow is divided into three isolated stages:
+| Control | Range | Default | Function |
+| :--- | :--- | :--- | :--- |
+| Drive | 0 dB to 40 dB | 20 dB | Sets the gain before the waveshaper. More drive gives more distortion. |
+| Trim | −40 dB to 0 dB | −20 dB | Sets the output gain. |
+| Tone | 0.0 to 1.0 | 0.0 | Opens the passband from 600 Hz–1 kHz (0.0) to 40 Hz–15 kHz (1.0). |
+| DryWetMix | 0.0 to 1.0 | 0.0 | Sets the fraction of distorted signal. 0.0 is fully dry. |
 
-### 1. Pre-Processing (Native Host Rate)
-Linear operations do not generate harmonics, so they are processed efficiently at the DAW's native sample rate (e.g., 44.1 kHz).
-* **Input Drive:** Dynamic gain staging.
-* **High-Pass Filter:** 1st-order IIR filter to attenuate low-frequency energy before distortion, minimizing intermodulation.
+The plugin has no custom editor. The host shows its generic controls.
 
-### 2. Nonlinear Core (8x Oversampled)
-The signal is upsampled into a high-speed processor chain to provide the bandwidth necessary for non-linear harmonic generation.
-* **FIR Interpolation:** Upsamples the signal by a factor of 8 (e.g., to 352.8 kHz).
-* **Waveshaper:** Applies an asymmetrical tanh(x) soft-clipping transfer function.
-* **DC Blocker:** A 5Hz high-pass filter calculated at the oversampled rate to re-center the waveform and correct the asymmetric DC offset.
-* **FIR Decimation:** Steep anti-aliasing filter that attenuates frequencies above the native Nyquist limit before downsampling.
+## Build
 
-### 3. Post-Processing (Native Host Rate)
-The downsampled signal is filtered and prepared for output.
-* **Low-Pass Filter:** 1st-order IIR filter to attenuate residual high-frequency artifacts.
-* **Output Trim:** Final gain normalization.
-* **Dry/Wet Mixer:** Phase-accurate linear interpolation for parallel processing.
+The project uses CMake 3.22 or later and C++23. CPM downloads JUCE 8.0.13 and GoogleTest.
 
----
+1. Run `cmake -S . -B build`.
+2. Run `cmake --build build`.
+
+## Results
+
+- **Aliasing:** With a 5 kHz sine and 20 dB of drive at 44.1 kHz, the inharmonic power is −100.4 dB. Without oversampling, it is −20.5 dB.
+- **Harmonics:** At 750 Hz, the 3rd harmonic is −10.7 dB and the 5th is −17.3 dB. The even harmonics are below −139 dB.
+- **Latency:** 64.25 samples (1.46 ms at 44.1 kHz).
 
 ## Limitations
 
-* **Group Delay:** The use of 141st-order linear-phase FIR filters for interpolation and decimation introduces inherent latency to the signal path, making it less suitable for live tracking scenarios where zero latency is required.
-* **CPU Overhead:** The 8x oversampling and FIR convolution demand a higher CPU footprint compared to standard single-rate implementations.
-* **Fixed Oversampling Rate:** The system is currently optimized for a static 8x multiplier rather than adapting dynamically to the host's base sample rate.
+- **Drive during playback:** A drive change applies only when the host prepares the plugin again, for example when playback restarts.
+- **Partial mix:** The dry signal is not aligned with the wet signal. Mix values between 0.0 and 1.0 cause comb filtering.
+- **Latency report:** The plugin does not report its latency to the host. Thus, a DAW does not correct the delay.
+- **Default mix:** The default mix is 0.0. Set DryWetMix to more than 0.0 to hear the distortion.
+- **Tone changes:** The tone filters change without a ramp. The tone control has only 11 positions.
+- **Odd harmonics only:** The symmetric waveshaper does not add even harmonics.
+- **CPU load:** The 8× FIR filters use more CPU than a processor at the host rate.
 
+## Technical Documentation
 
-## Acknowledgments & References
+For the signal path, the filter orders, the test conditions, and the known issues, read the **[technical documentation](https://delali-adanuty.github.io/Distortion/)**.
 
-Credit to the Stanford EE264 paper, *Digital Implementations of Musical Distortion* (Herman, Stanford University), which details the mathematics of non-linear aliasing and the filter design rationale utilized in this architecture.
+## Reference
+
+W. Herman, *DSPFuzz: A Guitar Distortion Pedal Using The Stanford DSP Shield*, EE264 Final Project, Stanford University, Winter 2015.
+
+---
+
+**Author:** Van-Dyck Adanuty
